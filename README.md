@@ -11,7 +11,14 @@
 4. cambiar las variables de entorno
 
 5. levantar la base de datos
-6. levantar modo desarrollo `yarn start:dev`
+
+6. ejecutar seed
+
+```
+http://localhost:3000/api/seed
+```
+
+7. levantar modo desarrollo `yarn start:dev`
 
 ```
 docker-compose up -d
