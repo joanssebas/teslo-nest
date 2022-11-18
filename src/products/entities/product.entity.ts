@@ -4,9 +4,11 @@ import {
   BeforeUpdate,
   Column,
   Entity,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { User } from 'src/auth/entities/user.entity';
 
 @Entity({ name: 'products' })
 export class Product {
@@ -69,6 +71,10 @@ export class Product {
       .replaceAll(' ', '_')
       .replaceAll("'", '');
   }
+
+  //many to one
+  @ManyToOne(() => User, (user) => user.product, { eager: true })
+  user: User;
 
   @BeforeUpdate()
   checkSlugUpdate() {
