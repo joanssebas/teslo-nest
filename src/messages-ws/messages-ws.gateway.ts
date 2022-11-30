@@ -1,20 +1,71 @@
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
+  SubscribeMessage,
   WebSocketGateway,
+  WebSocketServer,
 } from '@nestjs/websockets';
-import { Socket } from 'socket.io';
+import { Server, Socket } from 'socket.io';
+import { NewMessageDto } from './dto/new-message.dto';
 import { MessagesWsService } from './messages-ws.service';
+import { JwtService } from '@nestjs/jwt';
+import { JwtPayload } from 'src/auth/interfaces';
 
 @WebSocketGateway({ cors: true })
 export class MessagesWsGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
-  constructor(private readonly messagesWsService: MessagesWsService) {}
-  handleConnection(client: Socket) {
-    console.log('client connected', client.id);
+  @WebSocketServer() wss: Server;
+  constructor(
+    private readonly messagesWsService: MessagesWsService,
+    private readonly jwtService: JwtService,
+  ) {}
+  async handleConnection(client: Socket) {
+    // console.log(client);
+    const token = client.handshake.headers.authentication as string;
+    // console.log({ token });
+    let payload: JwtPayload;
+
+    try {
+      payload = this.jwtService.verify(token);
+      await this.messagesWsService.regiterClient(client, payload.id);
+    } catch (error) {
+      client.disconnect();
+      return;
+    }
+
+    // console.log({ payload });
+
+    // console.log('client connected', client.id);
+
+    this.wss.emit(
+      'clients-updated',
+      this.messagesWsService.getConnectedClients(),
+    );
+
+    // console.log({ conectados: this.messagesWsService.getConnectedClients() });
   }
   handleDisconnect(client: Socket) {
-    console.log('client disconnected', client.id);
+    this.messagesWsService.removeClient(client.id);
+    // console.log('client disconnected', client.id);
+    this.wss.emit(
+      'clients-updated',
+      this.messagesWsService.getConnectedClients(),
+    );
   }
+
+  @SubscribeMessage('message-from-client')
+  onMessageFromClient(client: Socket, payload: NewMessageDto) {
+    // console.log(client.id, payload);
+    // client.broadcast.emit('message-from-server', {
+    //   fullName: 'soy yo',
+    //   message: payload.message || 'no-message!!',
+    // });
+
+    this.wss.emit('message-from-server', {
+      fullName: this.messagesWsService.getUserFullName(client.id),
+      message: payload.message || 'no-message!!',
+    });
+  }
+  //message-from-client
 }
